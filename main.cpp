@@ -82,7 +82,7 @@ void generateVariants(const std::string original, std::vector<std::string> &vari
     variants.push_back(modifiedString);
 
     // Replace letters with numbers
-    std::map<char, char> charAsNumber = {{'a', '4'}, {'e', '3'}, {'i', '1'}, {'o', '0'}, {'t', '7'}, {'s', '5'}};
+    const std::map<char, char> charAsNumber = {{'a', '4'}, {'e', '3'}, {'i', '1'}, {'o', '0'}, {'t', '7'}, {'s', '5'}};
 
     int originalCount = variants.size();
     for (int i = 0; i < originalCount; ++i)
@@ -98,22 +98,35 @@ void generateVariants(const std::string original, std::vector<std::string> &vari
         }
     }
 
-    // Add 1, 12, 123 to ends of variants
+    // Add common endings
+    const std::vector<std::string> commonEnds = {"1", "11", "12", "123", "1234", "0", "00", "789", "!" ,"!!", "?"};
     originalCount = variants.size();
     for (int i = 0; i < originalCount; ++i)
     {
-        modifiedString = variants[i];
-        modifiedString.push_back('1');
-        variants.push_back(modifiedString);
-        modifiedString.push_back('2');
-        variants.push_back(modifiedString);
-        modifiedString.push_back('3');
-        variants.push_back(modifiedString);
+        for (auto ending : commonEnds) {
+            modifiedString = variants[i];
+            modifiedString.append(ending);
+            variants.push_back(modifiedString);
+        }
+    }
+    return;
+}
 
-        // Add ! to end
-        modifiedString = variants[i];
-        modifiedString.push_back('!');
-        variants.push_back(modifiedString);
+void generateAndCheckVariants(std::string inputHash, std::string baseGuess)
+{
+
+    // Make variants and check them
+    std::vector<std::string> variants;
+    generateVariants(baseGuess, variants);
+    for (auto &variant : variants)
+    {
+        std::cout << variant << std::endl;
+        if (sha256(variant) == inputHash)
+        {
+            std::cout << "Match found! Password is " << variant << std::endl;
+            //End program and all possible other threads when match is found
+            exit(EXIT_SUCCESS);
+        }
     }
     return;
 }
@@ -132,21 +145,9 @@ void searchFromFileAndModify(std::string inputHash)
         std::vector<std::string> variants;
         while (std::getline(pwfile, tp))
         {
-
-            //Make variants and check them
-            generateVariants(tp, variants);
-            for (auto &variant : variants)
-            {
-                std::cout << variant << std::endl;
-                if (sha256(variant) == inputHash)
-                {
-                    std::cout << "Match found! Password is " << variant << std::endl;
-                    pwfile.close();
-                    return;
-                }
-            }
-            variants.clear();
+            generateAndCheckVariants(inputHash, tp);
         }
+
         std::cout << "No match based on initial guesses in file " << pwFilename << std::endl;
         pwfile.close();
         return;
