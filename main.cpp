@@ -6,9 +6,18 @@
 #include <cctype>
 #include <vector>
 #include <map>
+#include <future>
 
-
+//Requires libssl-dev library to be installed: sudo apt-get install libssl-dev
 #include <openssl/sha.h>
+
+#include "./bcryptLib/bcrypt.h"
+
+namespace userSelection {
+    char algo; //b=bcrypt, s=sha256
+    std::string inputHash;
+    char mode; //d=dict, v=variants, c=combinations
+}
 
 std::string sha256(const std::string str)
 {
@@ -25,9 +34,30 @@ std::string sha256(const std::string str)
     return ss.str();
 }
 
-std::string askInputHash()
+void checkGuess(const std::string guess)
 {
-    std::string hashStr;
+    if (userSelection::algo == 'b')
+    {
+        // int ret;
+        // ret = bcrypt_checkpw( guess.c_str(), userSelection::inputHash.c_str() );
+        // if (ret == 0)
+        // {
+        //     std::cout << "Match found! Password is " << guess << std::endl;
+        //     exit(EXIT_SUCCESS);
+        // }
+    }
+    else if (userSelection::algo == 's')
+    {
+        if (sha256(guess) == userSelection::inputHash)
+        {
+            std::cout << "Match found! Password is " << guess << std::endl;
+            exit(EXIT_SUCCESS);
+        }
+    }
+}
+
+void askInputHash()
+{
     std::string filename_hashIn;
     std::cout << "File of input hash: ";
     std::cin >> filename_hashIn;
@@ -37,14 +67,13 @@ std::string askInputHash()
     hashfile.open(filename_hashIn, std::ios::in);
     if (hashfile.is_open())
     {
-        std::getline(hashfile, hashStr);
+        std::getline(hashfile, userSelection::inputHash);
         hashfile.close();
     }
-    return hashStr;
 
 }
 
-void searchFromPasswordFile(std::string inputHash)
+void searchFromPasswordFile()
 {
     std::string pwFilename;
     std::cout << "Name of passwordlist file: ";
@@ -57,12 +86,7 @@ void searchFromPasswordFile(std::string inputHash)
         std::string tp;
         while (std::getline(pwfile, tp))
         {
-            if (sha256(tp) == inputHash)
-            {
-                std::cout << "Match found! Password is " << tp << std::endl;
-                pwfile.close();
-                return;
-            }
+            checkGuess(tp);
         }
         std::cout << "No match found in file " << pwFilename << std::endl;
         std::cout << "Last item checked was: " << tp << std::endl;
@@ -103,35 +127,29 @@ void generateVariants(const std::string original, std::vector<std::string> &vari
     originalCount = variants.size();
     for (int i = 0; i < originalCount; ++i)
     {
-        for (auto ending : commonEnds) {
-            modifiedString = variants[i];
-            modifiedString.append(ending);
-            variants.push_back(modifiedString);
+        for (auto& ending : commonEnds) {
+            variants.push_back( variants[i] + ending);
         }
     }
     return;
 }
 
-void generateAndCheckVariants(std::string inputHash, std::string baseGuess)
+void generateAndCheckVariants( std::string baseGuess)
 {
 
     // Make variants and check them
     std::vector<std::string> variants;
+    variants.clear();
     generateVariants(baseGuess, variants);
     for (auto &variant : variants)
     {
-        std::cout << variant << std::endl;
-        if (sha256(variant) == inputHash)
-        {
-            std::cout << "Match found! Password is " << variant << std::endl;
-            //End program and all possible other threads when match is found
-            exit(EXIT_SUCCESS);
-        }
+        //std::cout << variant << std::endl;
+        checkGuess(variant);
     }
     return;
 }
 
-void searchFromFileAndModify(std::string inputHash)
+void searchFromFileAndModify()
 {
     std::string pwFilename;
     std::cout << "Name of passwordlist file: ";
@@ -142,11 +160,20 @@ void searchFromFileAndModify(std::string inputHash)
     if (pwfile.is_open())
     {
         std::string tp;
-        std::vector<std::string> variants;
+
+        auto start = std::chrono::steady_clock::now().time_since_epoch();
         while (std::getline(pwfile, tp))
         {
-            generateAndCheckVariants(inputHash, tp);
+            // Generate variants and calculate hashes for them using multiple threads.
+            // Async is high-level construct for managing this.
+             //std::async(generateAndCheckVariants, tp );
+
+             generateAndCheckVariants(tp);
         }
+
+        auto stop = std::chrono::steady_clock::now().time_since_epoch();
+        auto elapsed = (stop-start);
+        std::cout << "Time spent generating and checking variants: " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() << " ms" << std::endl;
 
         std::cout << "No match based on initial guesses in file " << pwFilename << std::endl;
         pwfile.close();
@@ -158,16 +185,24 @@ void searchFromFileAndModify(std::string inputHash)
 
 int main() {
     
-    std::string hashIn = askInputHash();
-    std::cout << "Hash to search for is " << hashIn << std::endl;
-    searchFromFileAndModify(hashIn);
+    askInputHash();
+    std::cout << "Hash to search for is " << userSelection::inputHash << std::endl;
 
+    std::cout << "Select algorithm: [s]ha256 or [b]crypt " << std::endl;
+    std::cin >> userSelection::algo;
+    std::cout << std::endl;
 
-    // std::cout << sha256("1234567890_1") << std::endl;
-    // std::cout << sha256("1234567890_2") << std::endl;
-    // std::cout << sha256("1234567890_3") << std::endl;
-    // std::cout << sha256("1234567890_4") << std::endl;
-    // std::cout << sha256("password") << std::endl;
-    // std::cout << sha256("p4ssword") << std::endl;
+    std::cout << "Select cracking mode: [d]ictionary attack   [v]ariants   [c]combinations from dict " << std::endl;
+    std::cin >> userSelection::mode;
+    std::cout << std::endl;
+
+    if (userSelection::mode == 'd') {
+        searchFromPasswordFile();
+    }
+    else if (userSelection::mode == 'v') {
+        searchFromFileAndModify();
+    }
+    
+
     return 0;
 }
