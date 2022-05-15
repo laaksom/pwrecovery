@@ -17,6 +17,7 @@ namespace userSelection {
     char algo; //b=bcrypt, s=sha256
     std::string inputHash;
     char mode; //d=dict, v=variants, c=combinations
+    std::string salt = "";
 }
 
 std::string sha256(const std::string str)
@@ -34,21 +35,24 @@ std::string sha256(const std::string str)
     return ss.str();
 }
 
-void checkGuess(const std::string guess)
+void checkGuess( const std::string guess)
 {
+    //Append salt given by user to end of guess. if user gave no salt, this is empty.
+    std::string saltedGuess = guess + userSelection::salt;
+
     if (userSelection::algo == 'b')
     {
-        // int ret;
-        // ret = bcrypt_checkpw( guess.c_str(), userSelection::inputHash.c_str() );
-        // if (ret == 0)
-        // {
-        //     std::cout << "Match found! Password is " << guess << std::endl;
-        //     exit(EXIT_SUCCESS);
-        // }
+        int ret;
+        ret = bcrypt_checkpw(saltedGuess.c_str(), userSelection::inputHash.c_str());
+        if (ret == 0)
+        {
+            std::cout << "Match found! Password is " << guess << std::endl;
+            exit(EXIT_SUCCESS);
+        }
     }
     else if (userSelection::algo == 's')
     {
-        if (sha256(guess) == userSelection::inputHash)
+        if (sha256(saltedGuess) == userSelection::inputHash)
         {
             std::cout << "Match found! Password is " << guess << std::endl;
             exit(EXIT_SUCCESS);
@@ -69,6 +73,31 @@ void askInputHash()
     {
         std::getline(hashfile, userSelection::inputHash);
         hashfile.close();
+    }
+    else {
+        std::cout << "ERROR: unable to open file " << filename_hashIn << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+}
+
+void askSaltFile()
+{
+    std::string filenameSalt;
+    std::cout << "File of salt: " << std::endl;
+    std::cin >> filenameSalt;
+    std::cout << std::endl;
+
+    std::fstream saltfile;
+    saltfile.open(filenameSalt, std::ios::in);
+    if (saltfile.is_open())
+    {
+        std::getline(saltfile, userSelection::salt);
+        saltfile.close();
+    }
+    else {
+        std::cout << "ERROR: unable to open file " << filenameSalt << std::endl;
+        exit(EXIT_FAILURE);
     }
 
 }
@@ -195,6 +224,18 @@ int main() {
     std::cout << "Select cracking mode: [d]ictionary attack   [v]ariants   [c]combinations from dict " << std::endl;
     std::cin >> userSelection::mode;
     std::cout << std::endl;
+
+    if (userSelection::algo == 's') {
+            std::cout << "Use salt? [y]es or [n]o" << std::endl;
+            char useSalt;
+            std::cin >> useSalt;
+            if (useSalt == 'y')
+            {
+                askSaltFile();
+                std::cout << "Salt added to guesses is: " << userSelection::salt << std::endl;
+            }
+    }
+
 
     if (userSelection::mode == 'd') {
         searchFromPasswordFile();

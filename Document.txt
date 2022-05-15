@@ -1,0 +1,11 @@
+Password recovery application
+
+This program tries to crack a password hash, i.e find out the original password that was used to create the given hash.
+
+Supported hashing algorithms are sha256 and bcrypt.
+In case of sha256, the user can supply a salt which is then appended to all generated guesses.
+With bcrypt hashes, the hash includes the used salt and difficulty. bcrpyt's checkPassword() function automatically reads these from the hash, so user only needs to supply hash if bcrypt is used.
+
+Library used for sha256 is openssl: https://github.com/openssl/openssl
+and for bcrypt OpenBSD cypto library: https://github.com/libressl-portable/openbsd/tree/master/src/lib/libc/crypt
+
