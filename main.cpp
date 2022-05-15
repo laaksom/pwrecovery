@@ -221,7 +221,7 @@ int main() {
     std::cin >> userSelection::algo;
     std::cout << std::endl;
 
-    std::cout << "Select cracking mode: [d]ictionary attack   [v]ariants   [c]combinations from dict " << std::endl;
+    std::cout << "Select cracking mode: [d]ictionary attack   [v]ariants " << std::endl;
     std::cin >> userSelection::mode;
     std::cout << std::endl;
 

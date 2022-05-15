@@ -1,11 +1,39 @@
 Password recovery application
+Building instructions for Linux are in readme.md
 
 This program tries to crack a password hash, i.e find out the original password that was used to create the given hash.
 
-Supported hashing algorithms are sha256 and bcrypt.
-In case of sha256, the user can supply a salt which is then appended to all generated guesses.
-With bcrypt hashes, the hash includes the used salt and difficulty. bcrpyt's checkPassword() function automatically reads these from the hash, so user only needs to supply hash if bcrypt is used.
+Supported hashing algorithms are sha-256 and bcrypt.
+In case of sha256, the user can supply a salt which is then appended to all generated guesses. There is no option to generate random salts, because if a salt was used but not known by the attacker, it is very unlikely to succesfully crack a password.
+With bcrypt hashes, the hash includes the used salt and difficulty. bcrypt's checkPassword() function automatically reads these from the hash, so user only needs to supply hash if bcrypt is used.
 
 Library used for sha256 is openssl: https://github.com/openssl/openssl
-and for bcrypt OpenBSD cypto library: https://github.com/libressl-portable/openbsd/tree/master/src/lib/libc/crypt
+and for bcrypt OpenBSD crypto library: https://github.com/libressl-portable/openbsd/tree/master/src/lib/libc/crypt
+
+The user can supply a text file containing guesses for the password. These can be user's own guesses or any other list of possible passwords.
+A few relatively small lists are provided in the gitHub and can be used as an example:
+    -94 000 Finnish words https://kaino.kotus.fi/sanat/nykysuomi/
+    -370 000 English words https://www.kaggle.com/datasets/ruchi798/part-of-speech-tagging
+    -1 million previously leaked passwords https://github.com/danielmiessler/SecLists/tree/master/Passwords
+
+The program can create variants of given password guesses. For example, replace characters with numbers, add numbers to the end and change lower-case letters to uppercase.
+
+The program is used by:
+    1. giving the program a name of the file containing the hash
+    2. selecting used algorithm (the user must know the algorithm the hash was generated with)
+    3. If salt was used, giving the program the name of file the salt is in.
+    4. Giving the program a name of fiel containng the list of guesses.
+
+    The program then reads the contents of the files, and prints out the correct cracked password if it was found, or tells that none of the guesses or generated variants match the hash.
+
+Features that were planned but not implemented:
+-GPU hashing: Utilising the parallel computing power of modern GPU's would speed up the calculation of hashes. 
+    Getting a GPU library to work was not as simple as expected. Also utilising a GPU would have required changes to the architecture of the program: for example, the password guesses would have been had to be feeded to the GPU in batches.
+    This would have been especially useful for sha-256 hashes, as sha-256 is designed to be very fast and GPU's could utilise all their power.
+    Bcrypt is designed to be resistant against brute forcing with a GPU, so using GPU's against bcrypt would not have been as effective as with sha-256.
+-Multi-threading on CPU: Calculating and generating the hashes on multiple threads simultaneously.
+    Currently the program only runs in a single thread. Multi-threading would speed up the program.
+-Overall performance improvements and optimisations
+    This program ended up being more of a proof-of-concept and a test at how password cracking applications work. Due to lack of optimisations, multithreading and GPU hashing, using this program is a lot slower than more developed similar software, such as Hashcat or John The Ripper.
+-Improvements to the algorithm generating variants. Currently only a fixed number of variants can be generated for each guess, and it would be better if a larger number, possibly infinitely was generated.
 
